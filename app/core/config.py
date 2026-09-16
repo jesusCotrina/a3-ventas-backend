@@ -36,7 +36,15 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        # El header Origin que manda el navegador nunca trae "/" al final
+        # (es solo esquema+host+puerto); si CORS_ORIGINS se configura con
+        # una barra final (p. ej. "https://mi-app.vercel.app/") el match
+        # exacto de CORSMiddleware falla y el preflight OPTIONS responde
+        # 400 "Disallowed CORS origin". Se quita aqui para no depender de
+        # que este bien tipeado en cada proveedor donde se despliegue.
+        return [
+            o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()
+        ]
 
     @property
     def is_sqlite(self) -> bool:
