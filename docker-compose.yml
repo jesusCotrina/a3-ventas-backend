@@ -1,0 +1,49 @@
+# Solo levanta PostgreSQL para desarrollo local.
+# El backend se ejecuta fuera de Docker con uvicorn (ver README.md).
+#
+#   docker compose up -d      -> arranca la base de datos
+#   docker compose down       -> la detiene (conserva los datos)
+#   docker compose down -v     -> la detiene y BORRA los datos
+#
+# Los scripts de ./db/migrations se ejecutan automaticamente SOLO la
+# primera vez que se crea el volumen (carpeta docker-entrypoint-initdb.d).
+# Para re-aplicar cambios usa scripts/migrate.py o `docker compose down -v`.
+#
+# IMPORTANTE (2026-09): container_name, nombre del volumen y puerto estan
+# fijados explicitamente a propósito. Este proyecto (Kaudal) partió como
+# copia de a1-gestion-talleres-app, y ambos tenían su backend en una
+# carpeta llamada "back" con este mismo fichero sin nombre de volumen fijo:
+# Docker Compose deriva el nombre del volumen del nombre de la carpeta si
+# no se fija, así que los dos terminaron compartiendo sin querer el mismo
+# contenedor ("taller_db") y el mismo volumen ("back_taller_pgdata"). Se
+# separaron: a1-gestion-talleres-app se quedó con esos datos originales;
+# este proyecto usa un contenedor, volumen y puerto propios, vacíos desde
+# cero (ver README.md de este proyecto para poblarlo con las migraciones y
+# los scripts de seed). No cambies estos nombres a algo sin fijar (sin
+# `name:`) o el problema puede repetirse si algun otro proyecto vuelve a
+# usar una carpeta "back".
+
+name: kaudal
+
+services:
+  db:
+    image: postgres:16
+    container_name: kaudal_db
+    environment:
+      POSTGRES_USER: taller
+      POSTGRES_PASSWORD: taller
+      POSTGRES_DB: taller
+    ports:
+      - "5433:5432"
+    volumes:
+      - taller_pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taller -d taller"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  taller_pgdata:
+    name: kaudal_pgdata
